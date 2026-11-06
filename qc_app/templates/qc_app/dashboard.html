@@ -40,7 +40,7 @@
                     <select id="orderPackageSelect" onchange="if(this.value) window.location.href='/load-sample/' + this.value + '/'" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer">
                         <option value="" disabled>Switch Appraisal Package...</option>
                         {% for s in samples %}
-                        <option value="{{ s.id }}" {% if s.id == session.appraisal_number %}selected{% endif %}>
+                        <option value="{{ s.id }}" {% if s.id == session.appraisal_number or s.id == session.session_id %}selected{% endif %}>
                             #{{ s.id }} • {{ s.lender }}
                         </option>
                         {% endfor %}

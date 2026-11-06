@@ -31,29 +31,165 @@ def resolve_file_path(path):
     if not path:
         return ""
     if os.path.exists(path):
-        return path
+        return os.path.abspath(path)
     
-    # Try relative to BASE_DIR
-    p1 = os.path.join(settings.BASE_DIR, path)
-    if os.path.exists(p1):
-        return p1
-
-    # Try in reports/
     basename = os.path.basename(path)
-    p2 = os.path.join(settings.BASE_DIR, 'reports', basename)
-    if os.path.exists(p2):
-        return p2
-
-    # Try in media/uploads/
-    p3 = os.path.join(settings.MEDIA_ROOT, 'uploads', basename)
-    if os.path.exists(p3):
-        return p3
-
-    p4 = os.path.join(settings.BASE_DIR, 'media', 'uploads', basename)
-    if os.path.exists(p4):
-        return p4
+    candidates = [
+        os.path.join(settings.BASE_DIR, path),
+        # Check subdirectories in reports
+        os.path.join(settings.BASE_DIR, 'reports', 'order', basename),
+        os.path.join(settings.BASE_DIR, 'reports', 'old', basename),
+        os.path.join(settings.BASE_DIR, 'reports', 'revised', basename),
+        os.path.join(settings.BASE_DIR, 'reports', basename),
+        # Check subdirectories in media/uploads
+        os.path.join(settings.MEDIA_ROOT, 'uploads', 'order', basename),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', 'old', basename),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', 'revised', basename),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', basename),
+        os.path.join(settings.BASE_DIR, 'media', 'uploads', 'order', basename),
+        os.path.join(settings.BASE_DIR, 'media', 'uploads', 'old', basename),
+        os.path.join(settings.BASE_DIR, 'media', 'uploads', 'revised', basename),
+        os.path.join(settings.BASE_DIR, 'media', 'uploads', basename),
+        # Check root directories
+        os.path.join(settings.BASE_DIR, 'order', basename),
+        os.path.join(settings.BASE_DIR, 'old', basename),
+        os.path.join(settings.BASE_DIR, 'revised', basename),
+    ]
+    for cand in candidates:
+        if os.path.exists(cand):
+            return os.path.abspath(cand)
 
     return path
+
+def find_package_files(package_id):
+    """
+    Finds order HTML, baseline XML, and revised XML across separate directories
+    (order/, old/, and revised/).
+    """
+    # 1. Order HTML
+    order_candidates = [
+        os.path.join(settings.MEDIA_ROOT, 'uploads', 'order', f"{package_id}.html"),
+        os.path.join(settings.BASE_DIR, 'reports', 'order', f"{package_id}.html"),
+        os.path.join(settings.BASE_DIR, 'order', f"{package_id}.html"),
+        os.path.join(settings.BASE_DIR, 'reports', f"{package_id}.html"),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', f"{package_id}.html"),
+    ]
+    order_path = ""
+    for c in order_candidates:
+        if os.path.exists(c):
+            order_path = os.path.abspath(c)
+            break
+    if not order_path:
+        for search_dir in [
+            os.path.join(settings.MEDIA_ROOT, 'uploads', 'order'),
+            os.path.join(settings.BASE_DIR, 'reports', 'order'),
+            os.path.join(settings.BASE_DIR, 'order'),
+            os.path.join(settings.MEDIA_ROOT, 'uploads'),
+            os.path.join(settings.BASE_DIR, 'reports'),
+        ]:
+            if os.path.exists(search_dir):
+                for f in os.listdir(search_dir):
+                    if package_id in f and f.lower().endswith(('.html', '.htm')):
+                        order_path = os.path.abspath(os.path.join(search_dir, f))
+                        break
+            if order_path:
+                break
+
+    # 2. Old Baseline XML
+    old_candidates = [
+        os.path.join(settings.MEDIA_ROOT, 'uploads', 'old', f"{package_id}.xml"),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', 'old', f"{package_id}.XML"),
+        os.path.join(settings.BASE_DIR, 'reports', 'old', f"{package_id}.xml"),
+        os.path.join(settings.BASE_DIR, 'reports', 'old', f"{package_id}.XML"),
+        os.path.join(settings.BASE_DIR, 'old', f"{package_id}.xml"),
+        os.path.join(settings.BASE_DIR, 'old', f"{package_id}.XML"),
+        os.path.join(settings.BASE_DIR, 'reports', f"{package_id}.xml"),
+        os.path.join(settings.BASE_DIR, 'reports', f"{package_id}.XML"),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', f"{package_id}.xml"),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', f"{package_id}.XML"),
+    ]
+    old_path = ""
+    for c in old_candidates:
+        if os.path.exists(c):
+            old_path = os.path.abspath(c)
+            break
+    if not old_path:
+        for search_dir in [
+            os.path.join(settings.MEDIA_ROOT, 'uploads', 'old'),
+            os.path.join(settings.BASE_DIR, 'reports', 'old'),
+            os.path.join(settings.BASE_DIR, 'old'),
+            os.path.join(settings.MEDIA_ROOT, 'uploads'),
+            os.path.join(settings.BASE_DIR, 'reports'),
+        ]:
+            if os.path.exists(search_dir):
+                for f in os.listdir(search_dir):
+                    if package_id in f and f.lower().endswith('.xml') and '_revised' not in f.lower():
+                        old_path = os.path.abspath(os.path.join(search_dir, f))
+                        break
+            if old_path:
+                break
+
+    # 3. Revised XML
+    revised_candidates = [
+        os.path.join(settings.MEDIA_ROOT, 'uploads', 'revised', f"{package_id}_Revised.xml"),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', 'revised', f"{package_id}_Revised.XML"),
+        os.path.join(settings.BASE_DIR, 'reports', 'revised', f"{package_id}_Revised.xml"),
+        os.path.join(settings.BASE_DIR, 'reports', 'revised', f"{package_id}_Revised.XML"),
+        os.path.join(settings.BASE_DIR, 'revised', f"{package_id}_Revised.xml"),
+        os.path.join(settings.BASE_DIR, 'revised', f"{package_id}_Revised.XML"),
+        os.path.join(settings.BASE_DIR, 'reports', f"{package_id}_Revised.xml"),
+        os.path.join(settings.BASE_DIR, 'reports', f"{package_id}_Revised.XML"),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', f"{package_id}_Revised.xml"),
+        os.path.join(settings.MEDIA_ROOT, 'uploads', f"{package_id}_Revised.XML"),
+    ]
+    revised_path = ""
+    for c in revised_candidates:
+        if os.path.exists(c):
+            revised_path = os.path.abspath(c)
+            break
+    if not revised_path:
+        for search_dir in [
+            os.path.join(settings.MEDIA_ROOT, 'uploads', 'revised'),
+            os.path.join(settings.BASE_DIR, 'reports', 'revised'),
+            os.path.join(settings.BASE_DIR, 'revised'),
+            os.path.join(settings.MEDIA_ROOT, 'uploads'),
+            os.path.join(settings.BASE_DIR, 'reports'),
+        ]:
+            if os.path.exists(search_dir):
+                for f in os.listdir(search_dir):
+                    if package_id in f and f.lower().endswith('.xml') and '_revised' in f.lower():
+                        revised_path = os.path.abspath(os.path.join(search_dir, f))
+                        break
+            if revised_path:
+                break
+
+    return order_path, old_path, revised_path
+
+def get_all_packages():
+    """Returns all packages, combining default samples and dynamically detected/uploaded packages."""
+    packages_map = {p['id']: dict(p) for p in SAMPLE_PACKAGES}
+    
+    # Check sessions in DB
+    for s in AppraisalSession.objects.all():
+        num = s.appraisal_number or s.session_id
+        if num not in packages_map:
+            lender_name = 'Uploaded Package'
+            try:
+                if s.order_html_path and os.path.exists(resolve_file_path(s.order_html_path)):
+                    hdata = parse_html_order(resolve_file_path(s.order_html_path))
+                    if hdata.get('client_name'):
+                        lender_name = hdata.get('client_name')
+            except Exception:
+                pass
+            packages_map[num] = {
+                'id': num,
+                'lender': lender_name,
+                'rejections': 0,
+                'borrower': 'Uploaded',
+                'val': 'N/A'
+            }
+
+    return list(packages_map.values())
 
 def get_or_create_default_session(session_id='default'):
     default_html = resolve_file_path(os.path.join(settings.BASE_DIR, 'reports', '269-03093.html'))
@@ -173,7 +309,7 @@ def dashboard_view(request):
         'pdf_page_diffs': pdf_page_diffs,
         'confirmation_rules_results': confirmation_rules_results,
         'checklist_execution_time': checklist_execution_time,
-        'samples': SAMPLE_PACKAGES,
+        'samples': get_all_packages(),
         'metrics': {
             'total_fields': total_fields,
             'matched_fields': matched_fields,
@@ -393,67 +529,152 @@ def upload_files_view(request):
     if request.method == 'GET' and request.GET.get('session_id'):
         return redirect(f"/dashboard/?session_id={request.GET.get('session_id')}")
 
-    samples = SAMPLE_PACKAGES
+    all_packages = get_all_packages()
+    target_package = request.GET.get('target_package') or '2610-01636'
 
     if request.method == 'POST':
         try:
-            upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
-            os.makedirs(upload_dir, exist_ok=True)
+            # 1. Ensure separate directories exist for order, old, and revised
+            order_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', 'order')
+            old_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', 'old')
+            revised_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', 'revised')
+
+            reports_order = os.path.join(settings.BASE_DIR, 'reports', 'order')
+            reports_old = os.path.join(settings.BASE_DIR, 'reports', 'old')
+            reports_revised = os.path.join(settings.BASE_DIR, 'reports', 'revised')
+
+            root_order = os.path.join(settings.BASE_DIR, 'order')
+            root_old = os.path.join(settings.BASE_DIR, 'old')
+            root_revised = os.path.join(settings.BASE_DIR, 'revised')
+
+            for d in [order_dir, old_dir, revised_dir, reports_order, reports_old, reports_revised, root_order, root_old, root_revised]:
+                os.makedirs(d, exist_ok=True)
 
             order_file = request.FILES.get('order_file')
             old_xml_file = request.FILES.get('old_xml_file')
             new_xml_file = request.FILES.get('new_xml_file')
 
             if not (order_file and old_xml_file and new_xml_file):
-                return render(request, 'qc_app/upload.html', {'error': 'Please provide all 3 files: Order HTML, Old XML, and Revised XML.', 'samples': samples})
+                return render(request, 'qc_app/upload.html', {
+                    'error': 'Please provide all 3 files: Order HTML, Old XML, and Revised XML.',
+                    'packages': all_packages,
+                    'samples': all_packages,
+                    'target_package': target_package
+                })
 
-            import uuid
-            new_session_id = str(uuid.uuid4())[:8]
+            # Read order content to inspect appraisal_number
+            order_bytes = order_file.read()
+            selected_target = request.POST.get('target_package', '').strip()
 
-            order_path = os.path.join(upload_dir, f"{new_session_id}_{order_file.name}")
-            old_path = os.path.join(upload_dir, f"{new_session_id}_{old_xml_file.name}")
-            new_path = os.path.join(upload_dir, f"{new_session_id}_{new_xml_file.name}")
+            # Save temporary file to parse HTML
+            temp_order_path = os.path.join(order_dir, f"temp_{order_file.name}")
+            with open(temp_order_path, 'wb+') as dest:
+                dest.write(order_bytes)
 
+            parsed_html = {}
+            try:
+                parsed_html = parse_html_order(temp_order_path)
+            except Exception:
+                pass
+            finally:
+                if os.path.exists(temp_order_path):
+                    try:
+                        os.remove(temp_order_path)
+                    except OSError:
+                        pass
+
+            # Determine package ID:
+            # If user selected a specific target package (e.g. 2610-01636), save to that package.
+            # Otherwise use parsed appraisal_number or default to '2610-01636'.
+            if selected_target and selected_target != 'auto':
+                package_id = selected_target
+            elif parsed_html.get('appraisal_number'):
+                package_id = parsed_html['appraisal_number']
+            else:
+                package_id = target_package or '2610-01636'
+
+            # 2. Save order file to separate order/ directory
+            order_path = os.path.join(order_dir, f"{package_id}.html")
             with open(order_path, 'wb+') as dest:
-                for chunk in order_file.chunks():
-                    dest.write(chunk)
-            with open(old_path, 'wb+') as dest:
-                for chunk in old_xml_file.chunks():
-                    dest.write(chunk)
-            with open(new_path, 'wb+') as dest:
-                for chunk in new_xml_file.chunks():
-                    dest.write(chunk)
+                dest.write(order_bytes)
+            # Sync to reports/order/ and root order/
+            with open(os.path.join(reports_order, f"{package_id}.html"), 'wb+') as dest:
+                dest.write(order_bytes)
+            with open(os.path.join(root_order, f"{package_id}.html"), 'wb+') as dest:
+                dest.write(order_bytes)
 
-            # Create session
-            session = AppraisalSession.objects.create(
-                session_id=new_session_id,
+            # 3. Save old baseline XML file to separate old/ directory
+            old_bytes = old_xml_file.read()
+            old_path = os.path.join(old_dir, f"{package_id}.xml")
+            with open(old_path, 'wb+') as dest:
+                dest.write(old_bytes)
+            with open(os.path.join(reports_old, f"{package_id}.xml"), 'wb+') as dest:
+                dest.write(old_bytes)
+            # Handle potential uppercase .XML in reports
+            if os.path.exists(os.path.join(reports_old, f"{package_id}.XML")):
+                with open(os.path.join(reports_old, f"{package_id}.XML"), 'wb+') as dest:
+                    dest.write(old_bytes)
+            with open(os.path.join(root_old, f"{package_id}.xml"), 'wb+') as dest:
+                dest.write(old_bytes)
+
+            # 4. Save revised XML file to separate revised/ directory
+            revised_bytes = new_xml_file.read()
+            new_path = os.path.join(revised_dir, f"{package_id}_Revised.xml")
+            with open(new_path, 'wb+') as dest:
+                dest.write(revised_bytes)
+            with open(os.path.join(reports_revised, f"{package_id}_Revised.xml"), 'wb+') as dest:
+                dest.write(revised_bytes)
+            # Handle potential uppercase .XML in reports
+            if os.path.exists(os.path.join(reports_revised, f"{package_id}_Revised.XML")):
+                with open(os.path.join(reports_revised, f"{package_id}_Revised.XML"), 'wb+') as dest:
+                    dest.write(revised_bytes)
+            with open(os.path.join(root_revised, f"{package_id}_Revised.xml"), 'wb+') as dest:
+                dest.write(revised_bytes)
+
+            # 5. Save/update session for the circle-marked package
+            session, created = AppraisalSession.objects.get_or_create(
+                session_id=package_id,
+                defaults={
+                    'appraisal_number': package_id,
+                    'order_html_path': order_path,
+                    'old_xml_path': old_path,
+                    'new_xml_path': new_path,
+                    'reviewer_name': 'QC Reviewer',
+                    'qc_status': 'IN_REVIEW'
+                }
+            )
+            session.appraisal_number = package_id
+            session.order_html_path = order_path
+            session.old_xml_path = old_path
+            session.new_xml_path = new_path
+            session.qc_status = 'IN_REVIEW'
+            session.save()
+
+            # Also update any existing session with appraisal_number=package_id
+            AppraisalSession.objects.filter(appraisal_number=package_id).update(
                 order_html_path=order_path,
                 old_xml_path=old_path,
-                new_xml_path=new_path,
-                reviewer_name='QC Reviewer',
-                qc_status='IN_REVIEW'
+                new_xml_path=new_path
             )
 
-            return redirect(f"/dashboard/?session_id={new_session_id}")
+            return redirect(f"/dashboard/?session_id={package_id}")
         except Exception as e:
-            return render(request, 'qc_app/upload.html', {'error': f"Upload failed: {str(e)}", 'samples': samples})
+            return render(request, 'qc_app/upload.html', {
+                'error': f"Upload failed: {str(e)}",
+                'packages': all_packages,
+                'samples': all_packages,
+                'target_package': target_package
+            })
 
-    return render(request, 'qc_app/upload.html', {'samples': samples})
+    return render(request, 'qc_app/upload.html', {
+        'packages': all_packages,
+        'samples': all_packages,
+        'target_package': target_package
+    })
 
 
 def load_sample_view(request, sample_id):
-    html_name = f"{sample_id}.html"
-    old_name = f"{sample_id}.xml"
-    new_name = f"{sample_id}_Revised.xml"
-
-    html_path = resolve_file_path(os.path.join(settings.BASE_DIR, 'reports', html_name))
-    old_path = resolve_file_path(os.path.join(settings.BASE_DIR, 'reports', old_name))
-    if not os.path.exists(old_path):
-        old_path = resolve_file_path(os.path.join(settings.BASE_DIR, 'reports', f"{sample_id}.XML"))
-    
-    new_path = resolve_file_path(os.path.join(settings.BASE_DIR, 'reports', new_name))
-    if not os.path.exists(new_path):
-        new_path = resolve_file_path(os.path.join(settings.BASE_DIR, 'reports', f"{sample_id}_Revised.XML"))
+    html_path, old_path, new_path = find_package_files(sample_id)
 
     session, created = AppraisalSession.objects.get_or_create(
         session_id=sample_id,
@@ -467,9 +688,10 @@ def load_sample_view(request, sample_id):
         }
     )
     if not created:
+        session.appraisal_number = sample_id
         session.order_html_path = html_path
         session.old_xml_path = old_path
         session.new_xml_path = new_path
-        session.save(update_fields=['order_html_path', 'old_xml_path', 'new_xml_path'])
+        session.save(update_fields=['appraisal_number', 'order_html_path', 'old_xml_path', 'new_xml_path'])
 
     return redirect(f"/dashboard/?session_id={sample_id}")

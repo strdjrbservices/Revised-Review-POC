@@ -64,7 +64,7 @@
                         <i data-lucide="printer" class="w-3.5 h-3.5 mr-1.5 text-slate-500"></i>
                         Print QC Certificate
                     </a>
-                    <a href="{% url 'qc_app:upload_files' %}" class="inline-flex items-center px-4 py-2 text-xs font-bold rounded-lg text-white bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 shadow-sm shadow-sky-600/25 transition">
+                    <a href="{% url 'qc_app:upload_files' %}{% if session %}?target_package={{ session.appraisal_number|default:session.session_id }}{% endif %}" class="inline-flex items-center px-4 py-2 text-xs font-bold rounded-lg text-white bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 shadow-sm shadow-sky-600/25 transition">
                         <i data-lucide="upload-cloud" class="w-3.5 h-3.5 mr-1.5"></i>
                         Upload New Files
                     </a>

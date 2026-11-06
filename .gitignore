@@ -8,6 +8,14 @@ __pycache__/
 *.sqlite3
 media/uploads/*
 !media/uploads/.gitkeep
+!media/uploads/order/.gitkeep
+!media/uploads/old/.gitkeep
+!media/uploads/revised/.gitkeep
+
+# Local root folders
+/order/
+/old/
+/revised/
 
 # Environments
 .env
