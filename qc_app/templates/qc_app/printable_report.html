@@ -175,8 +175,10 @@
                     <td class="p-2 border-r border-slate-200 text-slate-600 font-mono text-[11px]">{{ r.old_pdf }}</td>
                     <td class="p-2 border-r border-slate-200 text-slate-600 font-mono text-[11px]">{{ r.new_pdf }}</td>
                     <td class="p-2 text-center font-bold">
-                        {% if r.is_yes %}
+                        {% if r.final_output == 'Yes' %}
                         <span class="inline-block px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#9dff37] text-black border border-[#85e622]">Yes</span>
+                        {% elif r.is_passed %}
+                        <span class="inline-block px-2.5 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300">No</span>
                         {% else %}
                         <span class="inline-block px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#f80000] text-white">No</span>
                         {% endif %}

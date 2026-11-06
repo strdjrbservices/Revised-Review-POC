@@ -462,8 +462,8 @@
                     <div>
                         <div class="flex items-center gap-2">
                             <h2 class="text-lg font-bold text-slate-900">Confirmation Checklist &amp; QC Sign-Off</h2>
-                            <span id="checklistStatusPill" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                All Checks Verified
+                            <span id="checklistStatusPill" class="px-2.5 py-0.5 rounded-full text-xs font-semibold {% if metrics.rules_passed == metrics.rules_total %}bg-emerald-100 text-emerald-800 border border-emerald-300{% else %}bg-amber-100 text-amber-800 border border-amber-300{% endif %}">
+                                {% if metrics.rules_passed == metrics.rules_total %}All Checks Verified{% else %}{{ metrics.rules_passed }}/{{ metrics.rules_total }} Checks Passed{% endif %}
                             </span>
                         </div>
                         <p class="text-xs text-slate-500 mt-0.5">Automated appraisal validation rules and Quality Control sign-off workflow.</p>
@@ -510,10 +510,12 @@
                                     <td class="py-3.5 px-4 text-slate-700 font-normal leading-relaxed align-middle">{{ r.old_pdf }}</td>
                                     <td class="py-3.5 px-4 text-slate-700 font-normal leading-relaxed align-middle">{{ r.new_pdf }}</td>
                                     <td class="py-3.5 px-3 text-center align-middle">
-                                        {% if r.is_yes %}
+                                        {% if r.final_output == 'Yes' %}
                                         <span class="inline-block px-3 py-1 text-xs font-semibold text-black bg-[#9dff37] border border-[#8ae820] rounded min-w-[48px] text-center shadow-2xs">Yes</span>
+                                        {% elif r.is_passed %}
+                                        <span class="inline-block px-3 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-300 rounded min-w-[48px] text-center shadow-2xs" title="Verified Compliant">No</span>
                                         {% else %}
-                                        <span class="inline-block px-3 py-1 text-xs font-semibold text-white bg-[#f80000] border border-[#dc0000] rounded min-w-[48px] text-center shadow-2xs">No</span>
+                                        <span class="inline-block px-3 py-1 text-xs font-semibold text-white bg-[#f80000] border border-[#dc0000] rounded min-w-[48px] text-center shadow-2xs" title="QC Non-Compliant">No</span>
                                         {% endif %}
                                     </td>
                                 </tr>

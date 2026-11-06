@@ -1353,16 +1353,18 @@ def evaluate_confirmation_checklist_rules(old_xml_path, new_xml_path, html_data=
     old_1007_str = "Form 1007 Present" if old_meta['has_1007'] else "Form 1007 Not Present"
     new_1007_str = "Form 1007 Present" if new_meta['has_1007'] else "Form 1007 Not Present"
     r6_present = new_meta['has_1007']
+    
+    # Check if Form 1007 was ordered
+    order_app_type = ""
+    if html_data:
+        order_app_type = str(html_data.get('appraisal_type') or html_data.get('order_type') or '').lower()
+    req_1007 = ('1007' in order_app_type) or ('rent' in order_app_type)
+    r6_passed = r6_present if req_1007 else True
 
-    # 7. Form 216
-    old_216_str = "Form 216 Present" if old_meta['has_216'] else "Form 216 Not Present"
-    new_216_str = "Form 216 Present" if new_meta['has_216'] else "Form 216 Not Present"
-    r7_present = new_meta['has_216']
-
-    # 8. Page count
+    # 7. Page count
     old_pg_str = f"{old_meta['page_count']} Pages" if old_meta['page_count'] else "N/A"
     new_pg_str = f"{new_meta['page_count']} Pages" if new_meta['page_count'] else "N/A"
-    r8_verified = (new_meta['page_count'] > 0)
+    r7_verified = (new_meta['page_count'] > 0)
 
     elapsed = max(int(round(time.time() - t0)), 6)
     execution_time_str = f"0m {elapsed}s"
@@ -1370,11 +1372,13 @@ def evaluate_confirmation_checklist_rules(old_xml_path, new_xml_path, html_data=
     rules = [
         {
             'sr_no': 1,
-            'description': 'Please confirm the appraised value has been changed.',
+            'description': 'Please confirm if the appraised value has been changed.',
             'old_pdf': old_val_fmt,
             'new_pdf': new_val_fmt,
             'final_output': 'Yes' if r1_changed else 'No',
-            'is_yes': r1_changed
+            'is_yes': r1_changed,
+            'is_passed': (new_meta['appraised'] > 0),
+            'badge': 'yes' if r1_changed else 'neutral_no'
         },
         {
             'sr_no': 2,
@@ -1382,7 +1386,9 @@ def evaluate_confirmation_checklist_rules(old_xml_path, new_xml_path, html_data=
             'old_pdf': old_unadj_str,
             'new_pdf': new_unadj_str,
             'final_output': 'Yes' if r2_bracketed else 'No',
-            'is_yes': r2_bracketed
+            'is_yes': r2_bracketed,
+            'is_passed': r2_bracketed,
+            'badge': 'yes' if r2_bracketed else 'danger_no'
         },
         {
             'sr_no': 3,
@@ -1390,7 +1396,9 @@ def evaluate_confirmation_checklist_rules(old_xml_path, new_xml_path, html_data=
             'old_pdf': old_adj_str,
             'new_pdf': new_adj_str,
             'final_output': 'Yes' if r3_bracketed else 'No',
-            'is_yes': r3_bracketed
+            'is_yes': r3_bracketed,
+            'is_passed': r3_bracketed,
+            'badge': 'yes' if r3_bracketed else 'danger_no'
         },
         {
             'sr_no': 4,
@@ -1398,7 +1406,9 @@ def evaluate_confirmation_checklist_rules(old_xml_path, new_xml_path, html_data=
             'old_pdf': old_maps_str,
             'new_pdf': new_maps_str,
             'final_output': 'Yes' if r4_present else 'No',
-            'is_yes': r4_present
+            'is_yes': r4_present,
+            'is_passed': r4_present,
+            'badge': 'yes' if r4_present else 'danger_no'
         },
         {
             'sr_no': 5,
@@ -1406,7 +1416,9 @@ def evaluate_confirmation_checklist_rules(old_xml_path, new_xml_path, html_data=
             'old_pdf': old_gla_str,
             'new_pdf': new_gla_str,
             'final_output': 'Yes' if r5_consistent else 'No',
-            'is_yes': r5_consistent
+            'is_yes': r5_consistent,
+            'is_passed': r5_consistent,
+            'badge': 'yes' if r5_consistent else 'danger_no'
         },
         {
             'sr_no': 6,
@@ -1414,23 +1426,19 @@ def evaluate_confirmation_checklist_rules(old_xml_path, new_xml_path, html_data=
             'old_pdf': old_1007_str,
             'new_pdf': new_1007_str,
             'final_output': 'Yes' if r6_present else 'No',
-            'is_yes': r6_present
+            'is_yes': r6_present,
+            'is_passed': r6_passed,
+            'badge': 'yes' if r6_present else ('neutral_no' if r6_passed else 'danger_no')
         },
         {
             'sr_no': 7,
-            'description': 'Please confirm if the 216,str,rental,operating income form is present in the new report.',
-            'old_pdf': old_216_str,
-            'new_pdf': new_216_str,
-            'final_output': 'Yes' if r7_present else 'No',
-            'is_yes': r7_present
-        },
-        {
-            'sr_no': 8,
             'description': 'Please confirm the total pages count in the reports.',
             'old_pdf': old_pg_str,
             'new_pdf': new_pg_str,
-            'final_output': 'Yes' if r8_verified else 'No',
-            'is_yes': r8_verified
+            'final_output': 'Yes' if r7_verified else 'No',
+            'is_yes': r7_verified,
+            'is_passed': r7_verified,
+            'badge': 'yes' if r7_verified else 'danger_no'
         }
     ]
     return execution_time_str, rules

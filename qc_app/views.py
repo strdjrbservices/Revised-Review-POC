@@ -152,7 +152,7 @@ def dashboard_view(request):
     total_diffs = len(xml_differences)
     
     rules_total = len(confirmation_rules_results)
-    rules_passed = sum(1 for r in confirmation_rules_results if r['is_yes'])
+    rules_passed = sum(1 for r in confirmation_rules_results if r.get('is_passed', r.get('is_yes', False)))
     rules_pct = int((rules_passed / rules_total * 100)) if rules_total > 0 else 0
 
     # Group diffs by category
