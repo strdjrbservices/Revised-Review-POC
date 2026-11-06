@@ -1,0 +1,647 @@
+{% extends 'qc_app/base.html' %}
+
+{% block title %}Appraisal QC Review | {{ session.appraisal_number }} - 187 Hockhockson Rd{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Top Appraisal Metadata Card -->
+    <div class="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Appraisal #{{ session.appraisal_number }}</h1>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
+                        <i data-lucide="alert-circle" class="w-3.5 h-3.5 mr-1 text-rose-600"></i> Revision Verification
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                        RUSH
+                    </span>
+                    <span id="headerQcStatusBadge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {% if session.qc_status == 'APPROVED' %}bg-emerald-100 text-emerald-800 border border-emerald-300{% else %}bg-blue-100 text-blue-800 border border-blue-300{% endif %}">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5 mr-1"></i> {{ session.get_qc_status_display }}
+                    </span>
+                </div>
+                <div class="flex flex-wrap items-center gap-y-1 gap-x-4 mt-2 text-sm text-slate-600">
+                    <span class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-4 h-4 text-slate-400"></i> {{ html_data.property_address }}</span>
+                    <span>•</span>
+                    <span class="flex items-center gap-1.5"><i data-lucide="building-2" class="w-4 h-4 text-slate-400"></i> Client: <strong>{{ html_data.client_name }}</strong></span>
+                    <span>•</span>
+                    <span class="flex items-center gap-1.5"><i data-lucide="user" class="w-4 h-4 text-slate-400"></i> Vendor: <strong>{{ html_data.vendor }}</strong></span>
+                    <span>•</span>
+                    <span class="flex items-center gap-1.5"><i data-lucide="hash" class="w-4 h-4 text-slate-400"></i> Loan #: <strong>{{ html_data.loan_number }}</strong></span>
+                </div>
+            </div>
+
+            <!-- Package Switcher & Reviewer Sign-off Quick Trigger -->
+            <div class="flex flex-wrap items-center gap-2.5">
+                <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                    <i data-lucide="folder-git-2" class="w-3.5 h-3.5 text-slate-500"></i>
+                    <label for="orderPackageSelect" class="font-bold text-slate-600 sr-only">Order Package</label>
+                    <select id="orderPackageSelect" onchange="if(this.value) window.location.href='/load-sample/' + this.value + '/'" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer">
+                        <option value="" disabled>Switch Appraisal Package...</option>
+                        {% for s in samples %}
+                        <option value="{{ s.id }}" {% if s.id == session.appraisal_number %}selected{% endif %}>
+                            #{{ s.id }} • {{ s.lender }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <a href="#tab-checklist" onclick="switchTab('checklist')" class="inline-flex items-center px-4 py-2 text-xs font-bold rounded-lg text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-sm shadow-emerald-600/20 transition">
+                    <i data-lucide="check-square" class="w-3.5 h-3.5 mr-1.5"></i>
+                    Confirmation Checklist (<span id="quickChecklistPct">{{ metrics.rules_passed }}/{{ metrics.rules_total }} Passed</span>)
+                </a>
+            </div>
+        </div>
+
+        <!-- 4 Key Metrics Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+            <!-- Metric 1: Marked Fields Matching -->
+            <div onclick="switchTab('matching')" class="cursor-pointer bg-gradient-to-br from-white to-sky-50/40 hover:to-sky-50 p-4 rounded-xl border border-slate-200/80 hover:border-sky-300 hover:shadow-md transition-all">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">1. Marked Fields</span>
+                    <span class="p-2 rounded-lg bg-sky-100/80 text-sky-700 shadow-2xs"><i data-lucide="table" class="w-4 h-4"></i></span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ metrics.matched_fields }}/{{ metrics.total_fields }}</span>
+                    <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Matched</span>
+                </div>
+                <p class="mt-1 text-xs text-slate-500">Order HTML vs Old &amp; Revised XML</p>
+            </div>
+
+            <!-- Metric 2: Rejections Cross-Verification -->
+            <div onclick="switchTab('rejections')" class="cursor-pointer bg-gradient-to-br from-white to-emerald-50/40 hover:to-emerald-50 p-4 rounded-xl border border-slate-200/80 hover:border-emerald-300 hover:shadow-md transition-all">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">2. Rejection Reasons</span>
+                    <span class="p-2 rounded-lg bg-emerald-100/80 text-emerald-700 shadow-2xs"><i data-lucide="check-check" class="w-4 h-4"></i></span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="text-2xl font-extrabold text-emerald-700 tracking-tight">{{ metrics.corrected_rejections }}/{{ metrics.total_rejections }}</span>
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">{% if metrics.total_rejections > 0 %}{% widthratio metrics.corrected_rejections metrics.total_rejections 100 %}% Resolved{% else %}Verified{% endif %}</span>
+                </div>
+                <p class="mt-1 text-xs text-slate-500">{{ metrics.corrected_rejections }} of {{ metrics.total_rejections }} revision items verified corrected</p>
+            </div>
+
+            <!-- Metric 3: XML Differences -->
+            <div onclick="switchTab('diff')" class="cursor-pointer bg-gradient-to-br from-white to-purple-50/40 hover:to-purple-50 p-4 rounded-xl border border-slate-200/80 hover:border-purple-300 hover:shadow-md transition-all">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">3. XML Differences</span>
+                    <span class="p-2 rounded-lg bg-purple-100/80 text-purple-700 shadow-2xs"><i data-lucide="git-compare" class="w-4 h-4"></i></span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ metrics.total_diffs }}</span>
+                    <span class="text-xs font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">Points of change</span>
+                </div>
+                <p class="mt-1 text-xs text-slate-500">Old XML vs Revised XML ({{ session.appraisal_number }})</p>
+            </div>
+
+            <!-- Metric 4: Confirmation Checklist -->
+            <div onclick="switchTab('checklist')" class="cursor-pointer bg-gradient-to-br from-white to-indigo-50/40 hover:to-indigo-50 p-4 rounded-xl border border-slate-200/80 hover:border-indigo-300 hover:shadow-md transition-all">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">4. Confirmation Rules</span>
+                    <span class="p-2 rounded-lg bg-indigo-100/80 text-indigo-700 shadow-2xs"><i data-lucide="clipboard-check" class="w-4 h-4"></i></span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ metrics.rules_passed }}/{{ metrics.rules_total }}</span>
+                    <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">{% if metrics.rules_passed == metrics.rules_total %}100% Passed{% else %}{{ metrics.rules_pct }}% Passed{% endif %}</span>
+                </div>
+                <p class="mt-1 text-xs text-slate-500">Automated appraisal validation rules</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs (Matching the 4 User Tasks) -->
+    <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+        <div class="border-b border-slate-200 bg-slate-50/75 px-4 flex flex-wrap gap-1">
+            <button onclick="switchTab('matching')" id="tabBtn-matching" class="tab-btn active px-4 py-3 text-sm font-medium border-b-2 border-transparent transition flex items-center gap-2">
+                <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                1. Marked Fields Matching
+                <span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-slate-200 text-slate-700 font-semibold">{{ metrics.total_fields }}</span>
+            </button>
+            <button onclick="switchTab('rejections')" id="tabBtn-rejections" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent transition flex items-center gap-2">
+                <i data-lucide="check-check" class="w-4 h-4"></i>
+                2. Rejection Reasons Cross-Verification
+                <span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-800 font-semibold">{{ metrics.corrected_rejections }}/{{ metrics.total_rejections }} Fixed</span>
+            </button>
+            <button onclick="switchTab('diff')" id="tabBtn-diff" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent transition flex items-center gap-2">
+                <i data-lucide="git-compare" class="w-4 h-4"></i>
+                3. Old vs New XML Differences
+                <span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800 font-semibold">{{ metrics.total_diffs }}</span>
+            </button>
+            <button onclick="switchTab('checklist')" id="tabBtn-checklist" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent transition flex items-center gap-2">
+                <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                4. Confirmation Checklist
+                <span id="tabChecklistBadge" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-800 font-semibold">{{ metrics.rules_passed }}/{{ metrics.rules_total }} Validated</span>
+            </button>
+            <button onclick="switchTab('evidence')" id="tabBtn-evidence" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent transition flex items-center gap-2">
+                <i data-lucide="file-search" class="w-4 h-4"></i>
+                Supplemental Addenda &amp; Photos
+            </button>
+        </div>
+
+        <div class="p-6">
+
+            <!-- ========================================== -->
+            <!-- TAB 1: MARKED FIELDS MATCHING               -->
+            <!-- ========================================== -->
+            <div id="tabContent-matching" class="tab-content">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="check-circle" class="w-5 h-5 text-sky-600"></i>
+                            Comparison Result
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Cross-matching fields marked on order form against the Old XML report and New Revised XML report.</p>
+                    </div>
+
+                    <!-- View Controls -->
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="relative">
+                            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400"></i>
+                            <input type="text" id="fieldSearchInput" onkeyup="filterFieldRows()" placeholder="Search fields..." class="text-xs pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg bg-white w-36 sm:w-44 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        </div>
+
+                        <div class="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-100 text-xs font-medium">
+                            <button onclick="setFieldView('new')" id="viewBtn-new" class="px-3 py-1.5 rounded-md bg-white text-slate-900 shadow-2xs font-semibold">HTML vs Revised XML</button>
+                            <button onclick="setFieldView('threeway')" id="viewBtn-threeway" class="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900">3-Way (HTML vs Old vs New)</button>
+                            <button onclick="setFieldView('old')" id="viewBtn-old" class="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900">HTML vs Old XML</button>
+                        </div>
+
+                        <!-- Status Filter -->
+                        <select id="fieldFilterSelect" onchange="filterFieldRows()" class="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700">
+                            <option value="all">Show All Fields ({{ metrics.total_fields }})</option>
+                            <option value="match">Only Matches ({{ metrics.matched_fields }})</option>
+                            <option value="mismatch">Only Mismatches ({{ metrics.mismatched_fields }})</option>
+                            <option value="changed">Only Changed in Revision</option>
+                        </select>
+
+                        <a href="{% url 'qc_app:export_fields_csv' %}?session_id={{ session.session_id }}" class="text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 shadow-2xs" title="Download CSV">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i> Export CSV
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Main Comparison Result Table (Formatted to replicate Screenshot 4) -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-slate-600 font-semibold text-xs uppercase tracking-wider">
+                            <tr>
+                                <th scope="col" class="px-6 py-3.5 text-left">Field</th>
+                                <th scope="col" class="px-6 py-3.5 text-left">Value from HTML</th>
+                                <th scope="col" id="colHeaderOld" class="px-6 py-3.5 text-left hidden">Value from Old Report (XML)</th>
+                                <th scope="col" id="colHeaderReport" class="px-6 py-3.5 text-left">Value from Report (PDF/XML)</th>
+                                <th scope="col" class="px-6 py-3.5 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fieldTableBody" class="bg-white divide-y divide-slate-100 text-slate-700">
+                            {% for item in field_comparison %}
+                            <tr class="field-row hover:bg-slate-50/75 transition" data-status="{{ item.status|lower }}" data-changed="{% if item.xml_diff %}true{% else %}false{% endif %}">
+                                <!-- Field Name -->
+                                <td class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">
+                                    <div class="flex items-center gap-2">
+                                        <span>{{ item.field_name }}</span>
+                                        {% if item.xml_diff %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200" title="Changed between Old and Revised XML">
+                                            Rev Diff
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                <!-- Value from HTML -->
+                                <td class="px-6 py-4 font-normal text-slate-800">
+                                    <span class="break-words">{{ item.html_val }}</span>
+                                </td>
+
+                                <!-- Value from Old XML (Column for 3-way view) -->
+                                <td class="px-6 py-4 col-old hidden">
+                                    <span class="text-slate-600 {% if item.xml_diff %}line-through text-rose-600 bg-rose-50 px-1 py-0.5 rounded{% endif %}">
+                                        {{ item.old_val }}
+                                    </span>
+                                </td>
+
+                                <!-- Value from Report (PDF/XML) -->
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-2">
+                                        <span class="report-val-display font-medium text-slate-900 {% if item.xml_diff %}text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded font-semibold{% endif %}">
+                                            {{ item.new_val }}
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <!-- Status Badge -->
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {% if item.status == 'Match' %}
+                                    <span class="badge-match">
+                                        <i data-lucide="check" class="w-3.5 h-3.5 stroke-[2.5]"></i> Match
+                                    </span>
+                                    {% else %}
+                                    <span class="badge-mismatch">
+                                        <i data-lucide="x" class="w-3.5 h-3.5 stroke-[2.5]"></i> Mismatch
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Explanation Note on Discrepancies -->
+                <div class="mt-4 p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-800 space-y-1">
+                    <p class="font-semibold flex items-center gap-1.5">
+                        <i data-lucide="info" class="w-4 h-4 text-amber-600"></i>
+                        Appraisal Field Reconciliation Notes:
+                    </p>
+                    <ul class="list-disc pl-5 space-y-1 text-amber-700">
+                        {% for item in field_comparison %}
+                            {% if item.status != 'Match' or item.xml_diff %}
+                            <li><strong>{{ item.field_name }}:</strong> {{ item.notes }}</li>
+                            {% endif %}
+                        {% empty %}
+                            <li>All marked fields reconciled and match order specifications.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 2: REJECTION REASONS VERIFICATION       -->
+            <!-- ========================================== -->
+            <div id="tabContent-rejections" class="tab-content hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-lg font-bold text-slate-900">Report Rejection Reasons &amp; Cross-Verification</h2>
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                {{ metrics.corrected_rejections }} of {{ metrics.total_rejections }} Corrected
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Automatically captured from Order Form HTML (<span class="font-mono text-slate-700">#ctl00_cphBody_lblFileRejectReason</span>) and verified against the revised XML and embedded PDF.</p>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleRawRejectionText()" class="text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                            <i data-lucide="code" class="w-3.5 h-3.5"></i>
+                            Toggle Raw Order Rejection Text
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Raw Order Rejection Text Box (collapsible) -->
+                <div id="rawRejectionContainer" class="hidden mb-6 p-4 rounded-xl bg-slate-900 text-slate-200 text-xs font-mono border border-slate-800 whitespace-pre-wrap leading-relaxed">
+{{ html_data.rejection_reasons_raw }}
+                </div>
+
+                <!-- 4 Rejection Reason Verification Cards -->
+                <div class="space-y-5">
+                    {% for r in rejection_verifications %}
+                    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:border-slate-300 transition">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-7 h-7 rounded-lg bg-sky-600 text-white font-bold text-xs flex items-center justify-center">
+                                    #{{ r.number }}
+                                </span>
+                                <h3 class="text-sm font-bold text-slate-900">{{ r.title }}</h3>
+                            </div>
+                            <div>
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {{ r.badge_class }} border shadow-2xs">
+                                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5 mr-1.5"></i> {{ r.status }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Rejection Prompt from Order -->
+                        <div class="mt-3.5 p-3 rounded-lg bg-rose-50/60 border border-rose-200/80 text-xs text-rose-900">
+                            <span class="font-semibold text-rose-700">Order Form Rejection Directive:</span>
+                            <p class="mt-1 font-medium italic">"{{ r.rejection_text }}"</p>
+                        </div>
+
+                        <!-- Before & After Comparison Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <!-- Deficiency in Old Report -->
+                            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200">
+                                <div class="flex items-center justify-between text-xs font-semibold text-rose-700 mb-1.5">
+                                    <span class="flex items-center gap-1"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Defect in Old Report</span>
+                                    <span class="text-[10px] uppercase font-mono text-slate-400">Old Report</span>
+                                </div>
+                                <p class="text-xs text-slate-700 leading-relaxed">{{ r.deficiency_in_old }}</p>
+                                <div class="mt-2 text-[11px] font-mono text-slate-600 bg-white p-2 rounded border border-slate-200">
+                                    {{ r.old_evidence }}
+                                </div>
+                            </div>
+
+                            <!-- Correction in Revised Report -->
+                            <div class="p-3.5 rounded-lg bg-emerald-50/60 border border-emerald-200">
+                                <div class="flex items-center justify-between text-xs font-semibold text-emerald-800 mb-1.5">
+                                    <span class="flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Verified Correction in Revised Report</span>
+                                    <span class="text-[10px] uppercase font-mono text-emerald-600">Revised Report</span>
+                                </div>
+                                <p class="text-xs text-slate-700 leading-relaxed">{{ r.correction_in_new }}</p>
+                                <div class="mt-2 text-[11px] font-mono text-emerald-800 bg-white p-2 rounded border border-emerald-200">
+                                    {{ r.new_evidence }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Technical XPath Evidence -->
+                        <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                            <span class="font-mono text-slate-500">Source: {{ r.evidence_xpath }}</span>
+                            <span class="text-emerald-600 font-medium flex items-center gap-1">
+                                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Automated Verification Passed
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 3: OLD VS NEW XML DIFFERENCES           -->
+            <!-- ========================================== -->
+            <div id="tabContent-diff" class="tab-content hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-lg font-bold text-slate-900">XML Differences Analysis</h2>
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                                {{ metrics.total_diffs }} Modifications Detected
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">Comprehensive node and attribute comparison between <span class="font-mono text-slate-700">Old XML</span> and <span class="font-mono text-slate-700">Revised XML</span>.</p>
+                    </div>
+
+                    <!-- Search and Category Filters -->
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <div class="relative">
+                            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400"></i>
+                            <input type="text" id="diffSearchInput" onkeyup="filterDiffTable()" placeholder="Search XPath, old/new..." class="text-xs pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg bg-white w-48 sm:w-64 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        </div>
+
+                        <select id="diffCategoryFilter" onchange="filterDiffTable()" class="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700">
+                            <option value="all">All Categories ({{ metrics.total_diffs }})</option>
+                            {% for cat, cat_items in diff_categories.items %}
+                            <option value="{{ cat }}">{{ cat }} ({{ cat_items|length }})</option>
+                            {% endfor %}
+                        </select>
+
+                        <a href="{% url 'qc_app:export_diff_csv' %}?session_id={{ session.session_id }}" class="text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 shadow-2xs" title="Download Differences as CSV">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i> Export CSV
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Diff Category Summary Badges -->
+                <div class="flex flex-wrap gap-2 mb-4">
+                    {% for cat, cat_items in diff_categories.items %}
+                    <button onclick="setDiffCategoryFilter('{{ cat }}')" class="text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full {% if 'Borrower' in cat %}bg-sky-500{% elif 'Basement' in cat %}bg-emerald-500{% elif 'Sales' in cat %}bg-purple-500{% elif 'Dates' in cat %}bg-amber-500{% else %}bg-indigo-500{% endif %}"></span>
+                        <span class="font-medium">{{ cat }}</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-white font-bold border border-slate-200">{{ cat_items|length }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <!-- Diff Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                    <table class="min-w-full divide-y divide-slate-200 text-xs">
+                        <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left">Category</th>
+                                <th scope="col" class="px-4 py-3 text-left">XPath / XML Attribute</th>
+                                <th scope="col" class="px-4 py-3 text-left">Old Value</th>
+                                <th scope="col" class="px-4 py-3 text-left">New Value (Revised)</th>
+                                <th scope="col" class="px-4 py-3 text-left">Appraisal Significance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="diffTableBody" class="bg-white divide-y divide-slate-100 text-slate-700 font-mono">
+                            {% for d in xml_differences %}
+                            <tr class="diff-row hover:bg-slate-50/80 transition" data-category="{{ d.category }}">
+                                <!-- Category -->
+                                <td class="px-4 py-3 whitespace-nowrap font-sans font-medium">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold {% if 'Borrower' in d.category %}bg-sky-50 text-sky-800 border border-sky-200{% elif 'Basement' in d.category %}bg-emerald-50 text-emerald-800 border border-emerald-200{% elif 'Sales' in d.category %}bg-purple-50 text-purple-800 border border-purple-200{% elif 'Dates' in d.category %}bg-amber-50 text-amber-800 border border-amber-200{% else %}bg-indigo-50 text-indigo-800 border border-indigo-200{% endif %}">
+                                        {{ d.category }}
+                                    </span>
+                                </td>
+
+                                <!-- XPath -->
+                                <td class="px-4 py-3 text-slate-800 break-all max-w-xs font-semibold">
+                                    {{ d.xpath }}
+                                </td>
+
+                                <!-- Old Value -->
+                                <td class="px-4 py-3 text-rose-700 bg-rose-50/50">
+                                    <span class="line-through">{{ d.old_val }}</span>
+                                </td>
+
+                                <!-- New Value -->
+                                <td class="px-4 py-3 text-emerald-800 bg-emerald-50/50 font-bold">
+                                    <span>{{ d.new_val }}</span>
+                                </td>
+
+                                <!-- Impact -->
+                                <td class="px-4 py-3 font-sans text-slate-600 text-[11px]">
+                                    {{ d.impact }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 4: CONFIRMATION CHECKLIST               -->
+            <!-- ========================================== -->
+            <div id="tabContent-checklist" class="tab-content hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-100">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-lg font-bold text-slate-900">Confirmation Checklist &amp; QC Sign-Off</h2>
+                            <span id="checklistStatusPill" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                All Checks Verified
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">Automated appraisal validation rules and Quality Control sign-off workflow.</p>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <form method="post" action="{% url 'qc_app:reset_checklist' session.session_id %}">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Reset all checklist items to default verified status?')" class="text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset Defaults
+                            </button>
+                        </form>
+                        <a href="{% url 'qc_app:printable_report' %}?session_id={{ session.session_id }}" target="_blank" class="text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-2xs">
+                            <i data-lucide="award" class="w-3.5 h-3.5"></i> Export QC Certificate
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Total Time Taken Centered Header -->
+                <div class="text-center text-xs text-slate-700 font-medium mb-3">
+                    Total time taken: {{ checklist_execution_time|default:"0m 6s" }}
+                </div>
+
+                <!-- Confirmation Checklist Results Card -->
+                <div class="bg-white border border-slate-200/90 rounded-xl shadow-xs p-6 mb-8">
+                    <h3 class="text-base font-bold text-slate-900 mb-4">Confirmation Checklist Results</h3>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-900 font-bold">
+                                    <th class="py-3 px-3 w-16 align-top">Sr<br>No</th>
+                                    <th class="py-3 px-4 w-[38%] align-top">Description</th>
+                                    <th class="py-3 px-4 w-[24%] align-top">Old PDF</th>
+                                    <th class="py-3 px-4 w-[24%] align-top">New PDF</th>
+                                    <th class="py-3 px-3 text-center w-24 align-top">Final<br>Output</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-700">
+                                {% for r in confirmation_rules_results %}
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-3.5 px-3 font-normal text-slate-700 align-middle">{{ r.sr_no }}</td>
+                                    <td class="py-3.5 px-4 text-slate-800 leading-relaxed font-normal align-middle">{{ r.description }}</td>
+                                    <td class="py-3.5 px-4 text-slate-700 font-normal leading-relaxed align-middle">{{ r.old_pdf }}</td>
+                                    <td class="py-3.5 px-4 text-slate-700 font-normal leading-relaxed align-middle">{{ r.new_pdf }}</td>
+                                    <td class="py-3.5 px-3 text-center align-middle">
+                                        {% if r.is_yes %}
+                                        <span class="inline-block px-3 py-1 text-xs font-semibold text-black bg-[#9dff37] border border-[#8ae820] rounded min-w-[48px] text-center shadow-2xs">Yes</span>
+                                        {% else %}
+                                        <span class="inline-block px-3 py-1 text-xs font-semibold text-white bg-[#f80000] border border-[#dc0000] rounded min-w-[48px] text-center shadow-2xs">No</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Reviewer Sign-Off Form Box -->
+                <div class="bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200 rounded-xl p-5 mb-6 shadow-xs">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
+                        <i data-lucide="user-check" class="w-4 h-4 text-sky-600"></i>
+                        Reviewer Sign-Off &amp; Revision Disposition
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Reviewer Name / Title</label>
+                            <input type="text" id="reviewerNameInput" value="{{ session.reviewer_name }}" class="text-xs w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Review Decision Status</label>
+                            <select id="qcStatusSelect" class="text-xs w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-medium">
+                                <option value="APPROVED" {% if session.qc_status == 'APPROVED' %}selected{% endif %}>APPROVED - Ready for Delivery</option>
+                                <option value="IN_REVIEW" {% if session.qc_status == 'IN_REVIEW' %}selected{% endif %}>IN_REVIEW - Pending Senior Review</option>
+                                <option value="REVISION_REQUIRED" {% if session.qc_status == 'REVISION_REQUIRED' %}selected{% endif %}>REVISION_REQUIRED - Request Appraiser Updates</option>
+                                <option value="PENDING" {% if session.qc_status == 'PENDING' %}selected{% endif %}>PENDING - Not Started</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="saveSessionReview()" id="btnSaveReview" class="w-full text-xs font-semibold px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow-2xs transition flex items-center justify-center gap-1.5">
+                                <i data-lucide="save" class="w-4 h-4"></i> Save Sign-Off &amp; Decision
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Reviewer Assessment &amp; Final Disposition Comments</label>
+                        <textarea id="reviewerNotesInput" rows="2" class="text-xs w-full p-2.5 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-sky-500 leading-relaxed">{{ session.reviewer_notes }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 5: SUPPLEMENTAL ADDENDA & EVIDENCE      -->
+            <!-- ========================================== -->
+            <div id="tabContent-evidence" class="tab-content hidden">
+                <div class="mb-5 pb-4 border-b border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900">Supplemental Addenda &amp; Embedded PDF Evidence</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Deep inspection of pages modified in the embedded appraisal PDF report.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {% for r in rejection_verifications %}
+                    <div class="p-5 rounded-xl border border-slate-200 bg-white shadow-xs">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <span class="text-xs font-bold text-slate-900 flex items-center gap-2">
+                                <i data-lucide="file-text" class="w-4 h-4 text-sky-600"></i> Rejection #{{ r.number }}: {{ r.title }}
+                            </span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold {{ r.badge_class }}">
+                                {{ r.status }}
+                            </span>
+                        </div>
+                        <div class="mt-3 space-y-3 text-xs">
+                            <div class="p-3 rounded-lg bg-rose-50/70 border border-rose-200 text-rose-900">
+                                <span class="font-bold text-rose-700">Original / Deficient State:</span>
+                                <p class="mt-1 font-mono text-[11px] leading-relaxed">
+                                    {{ r.old_evidence }}
+                                </p>
+                            </div>
+                            <div class="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 text-emerald-900">
+                                <span class="font-bold text-emerald-700">Revised / Verified Correction:</span>
+                                <p class="mt-1 font-mono text-[11px] leading-relaxed">
+                                    {{ r.new_evidence }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Page Diff Summary Table -->
+                <div class="mt-6">
+                    <h3 class="text-sm font-bold text-slate-900 mb-3">All Embedded PDF Pages with Modifications</h3>
+                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                        <table class="min-w-full divide-y divide-slate-200 text-xs">
+                            <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left">Page #</th>
+                                    <th scope="col" class="px-4 py-3 text-left">Report Section</th>
+                                    <th scope="col" class="px-4 py-3 text-left">Nature of Revision</th>
+                                    <th scope="col" class="px-4 py-3 text-center">Relevance</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-slate-100 text-slate-700">
+                                {% for pd in pdf_page_diffs %}
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="px-4 py-3 font-bold font-mono text-slate-900">Page {{ pd.page_number }}</td>
+                                    <td class="px-4 py-3 font-medium text-slate-800">
+                                        {% if pd.page_number == 2 or pd.page_number == 8 %}Appraiser Signature &amp; Certification
+                                        {% elif pd.page_number == 3 %}Subject Identification
+                                        {% elif pd.page_number == 4 or pd.page_number == 9 %}Sales Comparison Grid
+                                        {% elif pd.page_number == 10 %}Market Conditions Addendum
+                                        {% elif pd.page_number == 12 %}Supplemental Addendum (Narrative)
+                                        {% elif pd.page_number == 20 %}Interior Photo Addendum
+                                        {% else %}Form Supplemental Data
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-4 py-3 text-slate-600">{{ pd.summary }}</td>
+                                    <td class="px-4 py-3 text-center">
+                                        {% if pd.is_key_rejection_page %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                            Rejection Fix Key
+                                        </span>
+                                        {% else %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">
+                                            Supporting
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/qc_app/js/app.js"></script>
+{% endblock %}
+

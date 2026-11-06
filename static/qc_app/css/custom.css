@@ -1,0 +1,187 @@
+/* AppraisalQC Platform - Modern Enterprise UI Styles */
+
+:root {
+    --primary-gradient: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #4f46e5 100%);
+    --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+    --card-shadow-hover: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+}
+
+/* Background Subtle Mesh */
+body {
+    background-color: #f8fafc;
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(224, 242, 254, 0.4) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(238, 242, 255, 0.4) 0px, transparent 50%);
+    background-attachment: fixed;
+}
+
+/* Glassmorphic Accents */
+.glass-header {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* Status Badges */
+.badge-match {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.05);
+}
+
+.badge-mismatch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    box-shadow: 0 1px 2px rgba(239, 68, 68, 0.05);
+}
+
+.badge-corrected {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.05);
+}
+
+.badge-updated {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+/* Pulsing Status Dot */
+.pulse-dot {
+    position: relative;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #10b981;
+}
+
+.pulse-dot::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 50%;
+    background-color: #10b981;
+    opacity: 0.75;
+    animation: pulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulseRing {
+    0% { transform: scale(0.95); opacity: 0.8; }
+    50% { transform: scale(2.2); opacity: 0; }
+    100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Interactive Dropzone Styles */
+.dropzone-box {
+    position: relative;
+    border: 2px dashed #cbd5e1;
+    border-radius: 1rem;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: #ffffff;
+    cursor: pointer;
+}
+
+.dropzone-box:hover {
+    border-color: #0284c7;
+    background-color: #f0f9ff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(2, 132, 199, 0.12);
+}
+
+.dropzone-box.drag-over {
+    border-color: #0284c7;
+    background-color: #e0f2fe;
+    transform: scale(1.01);
+    box-shadow: 0 12px 24px -4px rgba(2, 132, 199, 0.2);
+}
+
+.dropzone-box.has-file {
+    border-style: solid;
+    border-color: #10b981;
+    background-color: #f0fdf4;
+}
+
+/* Custom Interactive Tabs */
+.tab-btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.tab-btn:hover:not(.active) {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+.tab-btn.active {
+    color: #0284c7;
+    border-bottom: 2px solid #0284c7;
+    font-weight: 600;
+    background-color: #f0f9ff;
+}
+
+/* Smooth Transitions & Card Hovers */
+.hover-card {
+    transition: all 0.2s ease-out;
+}
+
+.hover-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}

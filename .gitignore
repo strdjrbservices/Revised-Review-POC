@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Django
+*.sqlite3
+media/uploads/*
+!media/uploads/.gitkeep
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Editors & IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

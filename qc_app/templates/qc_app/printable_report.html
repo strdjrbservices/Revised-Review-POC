@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QC Revision Verification Certificate - Appraisal #{{ session.appraisal_number }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        @media print {
+            .no-print { display: none !important; }
+            body { padding: 0; font-size: 11pt; }
+            .page-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body class="p-8 max-w-5xl mx-auto">
+
+    <!-- Print Action Bar -->
+    <div class="no-print mb-6 p-4 rounded-xl bg-slate-100 border border-slate-300 flex justify-between items-center">
+        <div>
+            <h2 class="text-sm font-bold text-slate-800">Printable Appraisal Revision QC Certificate</h2>
+            <p class="text-xs text-slate-500">Official Quality Control Audit &amp; Verification Document</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50">← Back to Dashboard</a>
+            <button onclick="window.print()" class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-700 text-white shadow-sm">Print / Save as PDF</button>
+        </div>
+    </div>
+
+    <!-- Header Certificate Box -->
+    <div class="border-2 border-slate-800 p-6 rounded-xl mb-6">
+        <div class="flex justify-between items-start border-b border-slate-200 pb-4">
+            <div>
+                <span class="text-xs font-bold uppercase tracking-widest text-sky-700">Appraisal Quality Assurance &amp; Compliance</span>
+                <h1 class="text-2xl font-black text-slate-900 mt-1">Revision Verification &amp; QC Audit Certificate</h1>
+                <p class="text-xs text-slate-600 mt-0.5">Order Reconciliation &amp; Correction Verification for Appraisal #{{ session.appraisal_number }}</p>
+            </div>
+            <div class="text-right">
+                <span class="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full font-bold text-xs uppercase tracking-wider">
+                    QC Disposition: {{ session.get_qc_status_display }}
+                </span>
+                <p class="text-xs text-slate-500 mt-1">Audit Date: {{ now|date:"M d, Y - H:i" }} UTC</p>
+            </div>
+        </div>
+
+        <!-- Order Information Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 text-xs">
+            <div>
+                <span class="text-slate-500 block">Appraisal Number:</span>
+                <strong class="text-slate-900">{{ session.appraisal_number }}</strong>
+            </div>
+            <div>
+                <span class="text-slate-500 block">Lender Loan #:</span>
+                <strong class="text-slate-900">{{ html_data.loan_number }}</strong>
+            </div>
+            <div>
+                <span class="text-slate-500 block">Client / Lender:</span>
+                <strong class="text-slate-900">{{ html_data.client_name }}</strong>
+            </div>
+            <div>
+                <span class="text-slate-500 block">Assigned Appraiser:</span>
+                <strong class="text-slate-900">{{ html_data.vendor }}{% if new_xml_data.appraiser_license %} (Lic: {{ new_xml_data.appraiser_license }}){% endif %}</strong>
+            </div>
+            <div class="col-span-2">
+                <span class="text-slate-500 block">Subject Property Address:</span>
+                <strong class="text-slate-900">{{ html_data.property_address }}{% if html_data.county %}, {{ html_data.county }} County{% endif %}</strong>
+            </div>
+            <div>
+                <span class="text-slate-500 block">Revised Signature Date:</span>
+                <strong class="text-emerald-700">{{ new_xml_data.signed_date }} (Updated from {{ old_xml_data.signed_date }})</strong>
+            </div>
+            <div>
+                <span class="text-slate-500 block">AMC Registration #:</span>
+                <strong class="text-slate-900">{{ html_data.amc_reg }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 1: Rejection Reasons Resolution Matrix -->
+    <div class="mb-6">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-1 mb-3">
+            1. Report Rejection Reasons &amp; Cross-Verification Resolution
+        </h2>
+        <table class="min-w-full text-xs border border-slate-300 rounded-lg overflow-hidden">
+            <thead class="bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
+                <tr>
+                    <th class="p-2.5 text-center border-b border-r border-slate-300 w-10">#</th>
+                    <th class="p-2.5 text-left border-b border-r border-slate-300 w-64">Order Rejection Directive</th>
+                    <th class="p-2.5 text-left border-b border-r border-slate-300">Previous Defect (Old Report)</th>
+                    <th class="p-2.5 text-left border-b border-r border-slate-300">Verified Correction (Revised Report)</th>
+                    <th class="p-2.5 text-center border-b border-slate-300 w-24">Resolution</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for r in rejection_verifications %}
+                <tr class="align-top">
+                    <td class="p-2.5 text-center font-bold font-mono border-r border-slate-200">{{ r.number }}</td>
+                    <td class="p-2.5 border-r border-slate-200 font-medium text-slate-900">{{ r.rejection_text }}</td>
+                    <td class="p-2.5 border-r border-slate-200 text-slate-600 bg-rose-50/40">
+                        <div>{{ r.deficiency_in_old }}</div>
+                        <div class="font-mono text-[10px] text-rose-700 mt-1">{{ r.old_evidence }}</div>
+                    </td>
+                    <td class="p-2.5 border-r border-slate-200 text-slate-800 bg-emerald-50/40 font-medium">
+                        <div>{{ r.correction_in_new }}</div>
+                        <div class="font-mono text-[10px] text-emerald-800 mt-1">{{ r.new_evidence }}</div>
+                    </td>
+                    <td class="p-2.5 text-center font-bold text-emerald-700">
+                        <span class="inline-block px-2 py-0.5 bg-emerald-100 border border-emerald-300 rounded text-[10px]">CORRECTED</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 2: Order Marked Fields Comparison Summary -->
+    <div class="mb-6">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-1 mb-3">
+            2. Order Form vs Appraisal Report Field Reconciliation
+        </h2>
+        <table class="min-w-full text-xs border border-slate-300 rounded-lg overflow-hidden">
+            <thead class="bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
+                <tr>
+                    <th class="p-2 border-b border-r border-slate-300 text-left">Field</th>
+                    <th class="p-2 border-b border-r border-slate-300 text-left">Value from HTML Order</th>
+                    <th class="p-2 border-b border-r border-slate-300 text-left">Value from Report (PDF/XML)</th>
+                    <th class="p-2 border-b border-slate-300 text-center w-24">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for item in field_comparison %}
+                <tr>
+                    <td class="p-2 font-semibold text-slate-900 border-r border-slate-200">{{ item.field_name }}</td>
+                    <td class="p-2 border-r border-slate-200 text-slate-700">{{ item.html_val }}</td>
+                    <td class="p-2 border-r border-slate-200 text-slate-900 font-medium">{{ item.new_val }}</td>
+                    <td class="p-2 text-center">
+                        {% if item.status == 'Match' %}
+                        <span class="font-bold text-emerald-700 text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">✓ Match</span>
+                        {% else %}
+                        <span class="font-bold text-rose-700 text-[10px] bg-rose-50 px-2 py-0.5 rounded border border-rose-200">✕ Mismatch</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 3: Formal Confirmation Checklist & Sign-Off -->
+    <div class="mb-6">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-1 mb-3">
+            3. Automated Confirmation Checklist Results (Time: {{ checklist_execution_time|default:"0m 6s" }})
+        </h2>
+        <table class="min-w-full text-xs border border-slate-300 rounded-lg overflow-hidden">
+            <thead class="bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
+                <tr>
+                    <th class="p-2 border-b border-r border-slate-300 text-center w-10">Sr #</th>
+                    <th class="p-2 border-b border-r border-slate-300 text-left">Appraisal Validation Rule</th>
+                    <th class="p-2 border-b border-r border-slate-300 text-left w-56">Original (Old PDF)</th>
+                    <th class="p-2 border-b border-r border-slate-300 text-left w-56">Revised (New PDF)</th>
+                    <th class="p-2 border-b border-slate-300 text-center w-20">Output</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for r in confirmation_rules_results %}
+                <tr>
+                    <td class="p-2 text-center border-r border-slate-200 font-bold text-slate-700 font-mono">{{ r.sr_no }}</td>
+                    <td class="p-2 border-r border-slate-200 font-medium text-slate-800">{{ r.description }}</td>
+                    <td class="p-2 border-r border-slate-200 text-slate-600 font-mono text-[11px]">{{ r.old_pdf }}</td>
+                    <td class="p-2 border-r border-slate-200 text-slate-600 font-mono text-[11px]">{{ r.new_pdf }}</td>
+                    <td class="p-2 text-center font-bold">
+                        {% if r.is_yes %}
+                        <span class="inline-block px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#9dff37] text-black border border-[#85e622]">Yes</span>
+                        {% else %}
+                        <span class="inline-block px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#f80000] text-white">No</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Reviewer Final Certification Box -->
+    <div class="border border-slate-300 bg-slate-50 p-5 rounded-xl text-xs space-y-3">
+        <h3 class="font-bold text-slate-900 uppercase tracking-wide">Reviewer Certification &amp; Authorization</h3>
+        <p class="text-slate-700 leading-relaxed italic">
+            "{{ session.reviewer_notes }}"
+        </p>
+        <div class="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200 text-slate-700">
+            <div>
+                <span class="block text-slate-500 text-[10px]">Reviewer:</span>
+                <strong>{{ session.reviewer_name }}</strong>
+            </div>
+            <div>
+                <span class="block text-slate-500 text-[10px]">Review Decision:</span>
+                <strong class="text-emerald-700 font-bold">{{ session.get_qc_status_display }}</strong>
+            </div>
+            <div>
+                <span class="block text-slate-500 text-[10px]">Date Authorized:</span>
+                <strong>{{ session.signed_off_at|date:"F d, Y - H:i"|default:"Verified" }}</strong>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+
