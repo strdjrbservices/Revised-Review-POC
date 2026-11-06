@@ -25,3 +25,4 @@ Appraisal Quality Control (QC) and Revision Verification System.
    ```bash
    python manage.py runserver
    ```
+
