@@ -303,7 +303,12 @@
                                 </span>
                                 <h3 class="text-sm font-bold text-slate-900">{{ r.title }}</h3>
                             </div>
-                            <div>
+                            <div class="flex items-center gap-2">
+                                {% if r.confidence_score %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 shadow-2xs" title="RapidFuzz Semantic Match Confidence">
+                                    <i data-lucide="zap" class="w-3 h-3 mr-1 text-sky-500"></i> {{ r.confidence_score }}% Match
+                                </span>
+                                {% endif %}
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {{ r.badge_class }} border shadow-2xs">
                                     <i data-lucide="check-circle-2" class="w-3.5 h-3.5 mr-1.5"></i> {{ r.status }}
                                 </span>

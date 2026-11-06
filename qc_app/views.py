@@ -123,8 +123,8 @@ def dashboard_view(request):
     # 4. XML Differences
     xml_differences = compute_xml_differences(old_xml_path, new_xml_path)
 
-    # 5. PDF Diff Details
-    pdf_page_diffs = extract_pdf_diff_details(old_xml_path, new_xml_path)
+    # 5. PDF Diff Details with RapidFuzz Rejection Linking
+    pdf_page_diffs = extract_pdf_diff_details(old_xml_path, new_xml_path, rejection_items=html_data.get('rejection_items', []))
 
     # 5b. Confirmation Checklist 8 Standard Rules
     checklist_execution_time, confirmation_rules_results = evaluate_confirmation_checklist_rules(old_xml_path, new_xml_path, html_data)
