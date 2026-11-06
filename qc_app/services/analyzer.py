@@ -140,10 +140,7 @@ def match_values(val1, val2, field_name=""):
             return True
             
     # Property type: Single Family Residential matches Detached, etc.
-    # Also if Order form specified N/A or Not Specified, appraiser documents actual structure
     if "property type" in fn or "structure" in fn:
-        if (v1 in ["n/a", "none", "", "null", "not specified"]) or (v2 in ["n/a", "none", "", "null", "not specified"]):
-            return True
         if ("single family" in v1 or "residential" in v1) and ("detached" in v2 or "single family" in v2):
             return True
         if ("condo" in v1 or "condominium" in v1) and ("condo" in v2 or "condominium" in v2):
@@ -151,10 +148,8 @@ def match_values(val1, val2, field_name=""):
         if ("attached" in v1 or "semidetached" in v1) and ("attached" in v2 or "semidetached" in v2):
             return True
 
-    # Occupancy type: if Order form specified N/A, appraiser documents actual occupancy
+    # Occupancy type
     if "occupancy" in fn or "occupied" in fn:
-        if (v1 in ["n/a", "none", "", "null", "not specified"]) or (v2 in ["n/a", "none", "", "null", "not specified"]):
-            return True
         if "tenant" in v1 and "tenant" in v2:
             return True
         if ("owner" in v1 or "primary" in v1) and ("owner" in v2 or "primary" in v2):
