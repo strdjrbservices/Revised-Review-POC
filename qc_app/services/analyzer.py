@@ -173,6 +173,9 @@ def match_values(val1, val2, field_name=""):
             return True
         if "2055" in v1 and "2055" in v2:
             return True
+        # 1004 with 1007 rent schedule reconciles with 1025 multi-family rent schedule
+        if ("1004" in v1 and "1007" in v1 and "1025" in v2) or ("1025" in v1 and "1004" in v2 and "1007" in v2):
+            return True
 
     # AMC Reg Number
     if "amc" in fn:
@@ -254,9 +257,33 @@ def parse_html_order(html_source):
         prop_address = re.sub(r'\s+', ' ', prop_address)
 
     county = get_text_by_ids('ctl00_cphBody_lblPropertyCounty', 'lblPropertyCounty', 'lblCounty')
-    prop_type = get_text_by_ids('ctl00_cphBody_lblPropertyType', 'lblPropertyType') or "Single Family Residential"
-    occupancy = get_text_by_ids('ctl00_cphBody_lblOccupiedBy', 'ctl00_cphBody_lblOccupancy', 'lblOccupiedBy') or "N/A"
     appraisal_type = get_text_by_ids('ctl00_cphBody_lblAppraisalType', 'ctl00_cphBody_lblAppraisalReport1TypeName', 'lblAppraisalType') or "1004 Conventional"
+
+    # Property Type extraction with intelligent domain fallback when raw label is N/A
+    raw_prop_type = get_text_by_ids('ctl00_cphBody_lblPropertyType', 'lblPropertyType')
+    if not raw_prop_type or raw_prop_type.upper() in ['N/A', 'NONE', 'NULL', 'NOT SPECIFIED', '']:
+        at_lower = appraisal_type.lower()
+        if 'condo' in at_lower or '1073' in at_lower:
+            prop_type = 'Condominium'
+        elif 'multi' in at_lower or '1025' in at_lower:
+            prop_type = 'Multi-Family'
+        elif 'manufactured' in at_lower or '1004c' in at_lower:
+            prop_type = 'Manufactured Housing'
+        else:
+            prop_type = 'Single Family Residential'
+    else:
+        prop_type = raw_prop_type
+
+    # Occupancy Type extraction with intelligent domain fallback when raw label is N/A
+    raw_occupancy = get_text_by_ids('ctl00_cphBody_lblOccupiedBy', 'ctl00_cphBody_lblOccupancy', 'lblOccupiedBy')
+    if not raw_occupancy or raw_occupancy.upper() in ['N/A', 'NONE', 'NULL', 'NOT SPECIFIED', '']:
+        at_lower = appraisal_type.lower()
+        if '1007' in at_lower or 'rent' in at_lower:
+            occupancy = 'Tenant Occupied'
+        else:
+            occupancy = 'Owner Occupied'
+    else:
+        occupancy = raw_occupancy
     amc_reg = get_text_by_ids('ctl00_cphBody_lblAMCRegistrationNumber', 'lblAMCRegistrationNumber')
     
     vendor = get_text_by_ids('ctl00_cphBody_lbl1004OrderAppraiserName', 'ctl00_cphBody_lblAppraiserName', 'ctl00_cphBody_lblVendorName', 'ctl00_cphBody_lblPrimaryAppraiserName')
@@ -360,6 +387,11 @@ def parse_xml_report(xml_source):
     # Structure
     structure = root.find('.//PROPERTY/STRUCTURE')
     prop_type = structure.attrib.get('AttachmentType', '') if structure is not None else ''
+    if not prop_type:
+        if appraisal_form_type in ['FNM1073', 'FRE465'] or '1073' in appraisal_form_type:
+            prop_type = 'Condominium'
+        elif appraisal_form_type in ['FNM1025', 'FRE72'] or '1025' in appraisal_form_type:
+            prop_type = 'Multi-Family'
     total_rooms = structure.attrib.get('TotalRoomCount', '') if structure is not None else ''
     bedrooms = structure.attrib.get('TotalBedroomCount', '') if structure is not None else ''
     bathrooms = structure.attrib.get('TotalBathroomCount', '') if structure is not None else ''
@@ -470,7 +502,9 @@ def compare_marked_fields(html_data, old_xml_data, new_xml_data):
             old_display = old_val or 'Not Documented'
             notes = f"Corrected in revised report from '{old_display}' to match order specification '{new_val}'."
         elif match_new:
-            if html_val.upper() in ['N/A', 'NONE', 'NOT SPECIFIED', ''] and new_val:
+            if ("1004" in html_val and "1007" in html_val and "1025" in new_val) or ("1025" in html_val and "1004" in new_val and "1007" in new_val):
+                notes = f"Verified: Order requested Form 1004 w/ 1007 Rent Schedule; appraisal delivered on Form FNM1025 (Multi-Family with Rent Schedule) based on physical inspection."
+            elif html_val.upper() in ['N/A', 'NONE', 'NOT SPECIFIED', ''] and new_val:
                 notes = f"Verified: Order form noted '{html_val or 'N/A'}'; appraisal documents inspection finding '{new_val}'."
             elif match_old:
                 if normalize_text(html_val).lower() == normalize_text(new_val).lower():
