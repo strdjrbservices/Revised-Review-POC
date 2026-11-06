@@ -34,11 +34,57 @@ def normalize_text(text):
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
+US_STREET_ABBREVIATIONS = {
+    'avenue': 'ave', 'street': 'st', 'drive': 'dr', 'road': 'rd',
+    'lane': 'ln', 'boulevard': 'blvd', 'court': 'ct', 'circle': 'cir',
+    'place': 'pl', 'parkway': 'pkwy', 'highway': 'hwy', 'terrace': 'ter',
+    'trail': 'trl', 'way': 'way',
+    'north': 'n', 'south': 's', 'east': 'e', 'west': 'w',
+    'northeast': 'ne', 'northwest': 'nw', 'southeast': 'se', 'southwest': 'sw',
+    'apartment': 'apt', 'suite': 'ste', 'unit': 'unit'
+}
+
 def clean_address(addr):
     if not addr:
         return ""
     cleaned = re.sub(r'[,#\.\-]', ' ', str(addr).lower())
-    return ' '.join(cleaned.split())
+    words = cleaned.split()
+    normalized = [US_STREET_ABBREVIATIONS.get(w, w) for w in words]
+    return ' '.join(normalized)
+
+def normalize_name_tokens(name):
+    if not name:
+        return []
+    s = re.sub(r'[\(\)]', ' ', str(name))
+    s = re.sub(r'\b(sra|mai|cert\s*res|cra|rea|appraiser)\b', ' ', s, flags=re.I)
+    s = re.sub(r'[,#\.\-/]', ' ', s)
+    tokens = [w.lower().strip() for w in s.split() if w.strip()]
+    return tokens
+
+def match_names(n1, n2):
+    t1 = normalize_name_tokens(n1)
+    t2 = normalize_name_tokens(n2)
+    if not t1 and not t2:
+        return True
+    if not t1 or not t2:
+        return False
+    if t1 == t2:
+        return True
+    core1 = [w for w in t1 if len(w) > 1 and w not in ('jr', 'sr', 'ii', 'iii', 'iv')]
+    core2 = [w for w in t2 if len(w) > 1 and w not in ('jr', 'sr', 'ii', 'iii', 'iv')]
+    if set(core1) == set(core2):
+        return True
+    if set(core1) and set(core2) and (set(core1).issubset(set(core2)) or set(core2).issubset(set(core1))):
+        return True
+    s1 = ' '.join(sorted(core1))
+    s2 = ' '.join(sorted(core2))
+    ocr_s1 = s1.replace('l', 'i').replace('0', 'o')
+    ocr_s2 = s2.replace('l', 'i').replace('0', 'o')
+    if ocr_s1 == ocr_s2:
+        return True
+    if difflib.SequenceMatcher(None, s1, s2).ratio() > 0.85:
+        return True
+    return False
 
 def match_values(val1, val2, field_name=""):
     v1 = normalize_text(val1).lower()
@@ -51,36 +97,86 @@ def match_values(val1, val2, field_name=""):
     
     fn = field_name.lower()
     
-    # Address normalization (ignoring commas, spacing)
+    # Address normalization (ignoring commas, spacing, street type abbreviations, unit designators)
     if "address" in fn:
-        return clean_address(v1) == clean_address(v2)
-    
-    # Transaction type: Purchase matches Purchase Transaction
-    if "transaction" in fn:
-        if "purchase" in v1 and "purchase" in v2:
+        a1 = clean_address(v1)
+        a2 = clean_address(v2)
+        if a1 == a2:
             return True
-        if "refinance" in v1 and "refinance" in v2:
+        u1 = re.sub(r'\b(apt|unit|ste|suite)\s+[a-z0-9]+', '', a1).strip()
+        u2 = re.sub(r'\b(apt|unit|ste|suite)\s+[a-z0-9]+', '', a2).strip()
+        u1 = ' '.join(u1.split())
+        u2 = ' '.join(u2.split())
+        if u1 == u2:
+            return True
+        if u1 and u2 and (u1 in u2 or u2 in u1):
+            return True
+        return False
+
+    # Borrower name matching (handles First Last vs Last, First, middle initials)
+    if "borrower" in fn:
+        return match_names(v1, v2)
+
+    # Vendor / Appraiser name matching
+    if "vendor" in fn or "appraiser" in fn:
+        return match_names(v1, v2)
+    
+    # Transaction type: Purchase matches Purchase Transaction, Re-Finance matches Refinance
+    if "transaction" in fn:
+        nv1 = v1.replace("-", "").replace(" ", "")
+        nv2 = v2.replace("-", "").replace(" ", "")
+        if "purchase" in nv1 and "purchase" in nv2:
+            return True
+        if "refinance" in nv1 and "refinance" in nv2:
             return True
             
-    # Property type: Single Family Residential matches Detached
+    # Property type: Single Family Residential matches Detached, etc.
+    # Also if Order form specified N/A or Not Specified, appraiser documents actual structure
     if "property type" in fn or "structure" in fn:
+        if (v1 in ["n/a", "none", "", "null", "not specified"]) or (v2 in ["n/a", "none", "", "null", "not specified"]):
+            return True
         if ("single family" in v1 or "residential" in v1) and ("detached" in v2 or "single family" in v2):
             return True
+        if ("condo" in v1 or "condominium" in v1) and ("condo" in v2 or "condominium" in v2):
+            return True
+        if ("attached" in v1 or "semidetached" in v1) and ("attached" in v2 or "semidetached" in v2):
+            return True
+
+    # Occupancy type: if Order form specified N/A, appraiser documents actual occupancy
+    if "occupancy" in fn or "occupied" in fn:
+        if (v1 in ["n/a", "none", "", "null", "not specified"]) or (v2 in ["n/a", "none", "", "null", "not specified"]):
+            return True
+        if "tenant" in v1 and "tenant" in v2:
+            return True
+        if ("owner" in v1 or "primary" in v1) and ("owner" in v2 or "primary" in v2):
+            return True
+        if "vacant" in v1 and "vacant" in v2:
+            return True
+        if "investment" in v1 and "tenant" in v2:
+            return True
             
-    # N/A handling
-    if (v1 in ["n/a", "none", "", "null"]) and (v2 in ["n/a", "none", "", "null"]):
+    # N/A handling for general fields
+    if (v1 in ["n/a", "none", "", "null", "not specified"]) and (v2 in ["n/a", "none", "", "null", "not specified"]):
         return True
 
     # Appraisal form type: 1004 Conventional matches FNM1004
     if "appraisal type" in fn or "form" in fn:
         if "1004" in v1 and "1004" in v2:
             return True
+        if "1025" in v1 and "1025" in v2:
+            return True
+        if "1073" in v1 and "1073" in v2:
+            return True
+        if "2055" in v1 and "2055" in v2:
+            return True
 
     # AMC Reg Number
     if "amc" in fn:
         c1 = re.sub(r'[^a-zA-Z0-9]', '', v1)
         c2 = re.sub(r'[^a-zA-Z0-9]', '', v2)
-        return c1 in c2 or c2 in c1 or "42ac00012300" in (c1 + c2)
+        if not c1 or not c2:
+            return False
+        return c1 == c2 or c1 in c2 or c2 in c1
         
     return False
 
@@ -243,15 +339,17 @@ def parse_xml_report(xml_source):
     occupancy = prop.attrib.get('_CurrentOccupancyType', '') if prop is not None else ''
     
     # Property Address
-    uspap_addr = report.attrib.get('USPAPReportDescription', '') if report is not None else ''
-    if uspap_addr:
-        prop_address = uspap_addr
-    elif prop is not None:
-        p_street = prop.attrib.get('_StreetAddress', '')
-        p_city = prop.attrib.get('_City', '')
-        p_state = prop.attrib.get('_State', '')
-        p_zip = prop.attrib.get('_PostalCode', '')
-        prop_address = f"{p_street}, {p_city}, {p_state} {p_zip}".strip(", ")
+    if prop is not None:
+        unparsed = prop.attrib.get('AppraisalFormsUnparsedAddress') or prop.attrib.get('_UnparsedAddress')
+        if unparsed:
+            prop_address = unparsed
+        else:
+            p_street = prop.attrib.get('_StreetAddress', '')
+            p_city = prop.attrib.get('_City', '')
+            p_state = prop.attrib.get('_State', '')
+            p_zip = prop.attrib.get('_PostalCode', '')
+            parts = [p for p in [p_street, p_city, f"{p_state} {p_zip}".strip()] if p]
+            prop_address = ", ".join(parts) if parts else ''
     else:
         prop_address = ''
 
@@ -277,11 +375,19 @@ def parse_xml_report(xml_source):
     vm = root.find('.//VALUATION_METHODS')
     if vm is not None:
         desc = vm.attrib.get('_AdditionalDescription', '')
-        m = re.search(r'(?:AMC\s*#?|NJ-AMC\s*#?)\s*([A-Za-z0-9]+)', desc, re.I)
+        m = re.search(r'(?:AMC|NJ[- ]?AMC)(?:[\s\-_]*(?:Registration|Reg|Number|No|Lic|License|#)\.?)*[\s:]*([A-Za-z0-9]{5,})', desc, re.I)
         if m:
-            amc_reg = m.group(1)
+            amc_reg = m.group(1).strip()
     if not amc_reg:
-        amc_reg = "42AC00012300"
+        for node in root.iter():
+            for attr_name, attr_val in node.attrib.items():
+                if 'amc' in attr_name.lower() or 'amc' in str(attr_val).lower():
+                    m = re.search(r'(?:AMC|NJ[- ]?AMC)(?:[\s\-_]*(?:Registration|Reg|Number|No|Lic|License|#)\.?)*[\s:]*([A-Za-z0-9]{5,})', str(attr_val), re.I)
+                    if m:
+                        amc_reg = m.group(1).strip()
+                        break
+            if amc_reg:
+                break
 
     # Comparables adjustments summary
     comps = []
@@ -357,9 +463,12 @@ def compare_marked_fields(html_data, old_xml_data, new_xml_data):
 
         # Dynamic contextual reconciliation notes
         if xml_diff and match_new:
-            notes = f"Corrected in revised report from '{old_val}' to match order specification '{new_val}'."
+            old_display = old_val or 'Not Documented'
+            notes = f"Corrected in revised report from '{old_display}' to match order specification '{new_val}'."
         elif match_new:
-            if match_old:
+            if html_val.upper() in ['N/A', 'NONE', 'NOT SPECIFIED', ''] and new_val:
+                notes = f"Verified: Order form noted '{html_val or 'N/A'}'; appraisal documents inspection finding '{new_val}'."
+            elif match_old:
                 if normalize_text(html_val).lower() == normalize_text(new_val).lower():
                     notes = f"Verified: Order form and report match exactly ({new_val})."
                 else:
